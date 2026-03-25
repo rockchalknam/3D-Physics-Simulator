@@ -1,1 +1,1 @@
-<canvas id="canvas" width="640" height="480"></canvas>
+var Module=typeof Module!=="undefined"?Module:{};
