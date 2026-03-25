@@ -14,29 +14,27 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.2/dist/FileSaver.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.0/nipplejs.min.js"></script>
 
     <script>
-        // Initial Dark Mode Check
-        function getSystemDarkMode(){
-            return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        }
+        // Theme Management
         const darkMode = localStorage.getItem('heron-lab-darkMode');
-        if ((darkMode !== null ? darkMode === "true" : getSystemDarkMode())) {
+        if (darkMode === "true" || (darkMode === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.dataset.darkmode = "true";
         }
     </script>
 
     <style>
         input[type="file"] { display: none; }
-        .table td, .table th { padding: 8px; vertical-align: middle; }
-        #maindiv { padding-top: 30px; }
-        .touchsurface { 
-            color: #ccc; background: #f8f9fa; width: 100%; height: 400px; 
-            border: 2px dashed #ddd; display: flex; align-items: center; justify-content: center; 
+        #maindiv { padding-top: 30px; min-height: 100vh; }
+        #canvas { 
+            width: 100%; 
+            max-width: 800px; 
+            background-color: #000; 
+            border: 4px solid #333; 
+            border-radius: 8px; 
+            display: block; 
+            margin: 0 auto; 
         }
-        /* Dark Mode */
         [data-darkmode="true"] body { background-color: #121212; color: #eee; }
         [data-darkmode="true"] .card, [data-darkmode="true"] .modal-content { background-color: #1e1e1e; border-color: #444; }
         [data-darkmode="true"] .form-control { background-color: #2b2b2b; color: #fff; }
@@ -53,14 +51,14 @@
         <div id="topPanel">
             <div rv-if="data.beforeEmulatorStarted">
                 <div class="mb-4">
-                    <button id="btnPlayGame" class="btn btn-success btn-lg mx-1" onclick="myClass.loadRom();" 
+                    <button class="btn btn-success btn-lg mx-1" onclick="myClass.loadRom();" 
                         rv-if="data.hasRoms" rv-disabled="data.moduleInitializing">Run Simulation</button>
-                    <button id="btnUploadRom" class="btn btn-primary btn-lg mx-1" onclick="myApp.uploadBrowse()">Load Dataset</button>
-                    <button type="button" class="btn btn-outline-secondary btn-lg mx-1" onclick="myApp.showRemapModal()">Controls</button>
+                    <button class="btn btn-primary btn-lg mx-1" onclick="myApp.uploadBrowse()">Load Dataset</button>
+                    <button class="btn btn-outline-secondary btn-lg mx-1" onclick="myApp.showRemapModal()">Controls</button>
                 </div>
 
-                <div class="form-group mx-auto" style="max-width: 300px;" rv-if="data.hasRoms">
-                    <label>Select Project File:</label>
+                <div class="form-group mx-auto" style="max-width: 320px;" rv-if="data.hasRoms">
+                    <label class="font-weight-bold">Module Selection:</label>
                     <select class="form-control" id="romselect">
                         <option rv-each-rom="data.romList" rv-value="rom.url">{rom.title}</option>
                     </select>
@@ -72,7 +70,6 @@
                     <button class="btn btn-danger mx-1" onclick="myApp.newRom()">Stop Lab</button>
                     <button class="btn btn-info mx-1" onclick="myApp.reset()">Reset</button>
                     <button class="btn btn-primary mx-1" onclick="myApp.saveStateLocal()">Quick Save</button>
-                    <button class="btn btn-primary mx-1" onclick="myApp.loadStateLocal()" rv-disabled="data.noLocalSave">Quick Load</button>
                     <button class="btn btn-secondary mx-1" onclick="myApp.fullscreen()">Fullscreen</button>
                 </div>
             </div>
@@ -80,28 +77,28 @@
 
         <div id="middleDiv" class="mt-4">
             <div id="canvasDiv" style="display: none;">
-                <canvas id="canvas" style="width: 100%; max-width: 800px; border: 5px solid #333; border-radius: 8px;"></canvas>
+                <canvas id="canvas"></canvas>
             </div>
         </div>
 
         <input id="file-upload" type="file" />
 
-        <footer class="mt-5 pb-5">
-            <hr><p class="text-muted">Core Engine Powered by n64wasm</p>
+        <footer class="mt-5 pt-5 text-muted">
+            <hr><small>Heron Kinematics Engine | Powered by N64WASM</small>
         </footer>
     </div>
 
-    <div class="modal fade" id="buttonsModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
+    <div class="modal fade" id="buttonsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header"><h5>Input Configuration</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+                <div class="modal-header"><h5>Input Mapping</h5><button class="close" data-dismiss="modal">&times;</button></div>
                 <div class="modal-body">
-                    <table class="table table-striped">
-                        <thead><tr><th>Signal</th><th>Key</th><th>Action</th></tr></thead>
+                    <table class="table">
+                        <thead><tr><th>Action</th><th>Key</th><th>Edit</th></tr></thead>
                         <tbody>
                             <tr rv-each-btn="data.remappableButtons">
-                                <th>{btn.name}</th>
-                                <td><input rv-value="btn.key" class="form-control form-control-sm" disabled></td>
+                                <td>{btn.name}</td>
+                                <td><kbd>{btn.key}</kbd></td>
                                 <td><button class="btn btn-sm btn-primary" onclick="myApp.btnRemapKey(this)">Remap</button></td>
                             </tr>
                         </tbody>
@@ -111,15 +108,34 @@
         </div>
     </div>
 
-    <script src="romlist.js"></script>          <script src="input_controller.js"></script>  <script src="n64wasm.js"></script>          <script src="main.js"></script>             <script>
-        // Connect romlist.js data to the App Dashboard
+    <script>
+        window.Module = {
+            canvas: null,
+            print: console.log,
+            printErr: console.error,
+            onRuntimeInitialized: function() {
+                console.log("WASM Core Ready.");
+            }
+        };
+    </script>
+
+    <script src="romlist.js"></script>
+    <script src="n64wasm.js"></script>
+    <script src="input_controller.js"></script>
+    <script src="main.js"></script>
+
+    <script>
         $(document).ready(function() {
+            // Assign canvas to the pre-defined Module
+            window.Module.canvas = document.getElementById('canvas');
+
+            // Sync RomList from romlist.js to the UI
             if (typeof ROMLIST !== 'undefined' && ROMLIST.length > 0) {
                 myApp.data.romList = ROMLIST;
                 myApp.data.hasRoms = true;
             } else {
-                // Manual fallback if romlist.js is missing
-                myApp.data.romList = [{ title: "Practice Engine", url: "practice_engine.dat" }];
+                // Fallback for testing
+                myApp.data.romList = [{ title: "Kinematics Module 1", url: "practice_engine.dat" }];
                 myApp.data.hasRoms = true;
             }
         });
