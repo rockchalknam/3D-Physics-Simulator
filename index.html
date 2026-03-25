@@ -50,7 +50,7 @@
 
     <script>
         window.Module = {
-            canvas: null,
+            canvas: document.getElementById('canvas'),
             print: console.log,
             printErr: console.error,
             locateFile: function(path) {
@@ -65,6 +65,5 @@
     <script src="input_controller.js"></script>
 
     <script src="main.js"></script>
-
 </body>
 </html>
