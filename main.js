@@ -1,22 +1,19 @@
 /**
  * Let's Go Herons | Physics Lab Controller
- * Final Recompiled Version - GitHub Pages Optimized
+ * Clean Recompiled Version
  */
 
 var myApp = {
     data: {
         beforeEmulatorStarted: true,
-        hasRoms: false,
-        romList: [],
         moduleInitializing: false,
-        chkAdvanced: false,
+        hasRoms: true,
+        romList: [], // Will be populated from romlist.js
         noLocalSave: true,
-        settings: { SHOWADVANCED: true },
         remappableButtons: [
             { name: 'Start/Pause', key: 'Enter' },
             { name: 'Action A', key: 'x' },
             { name: 'Action B', key: 'c' },
-            { name: 'Z-Trigger', key: 'z' },
             { name: 'Up', key: 'ArrowUp' },
             { name: 'Down', key: 'ArrowDown' },
             { name: 'Left', key: 'ArrowLeft' },
@@ -25,10 +22,15 @@ var myApp = {
     },
 
     init: function() {
-        // Bind UI
+        // 1. Sync the ROM list from your romlist.js file
+        if (typeof ROMLIST !== 'undefined') {
+            this.data.romList = ROMLIST;
+        }
+
+        // 2. Bind the data to the HTML using Rivets
         rivets.bind($('#maindiv'), { data: this.data });
-        this.data.noLocalSave = !localStorage.getItem('heron-lab-save');
-        console.log("Heron Lab: Systems Online");
+        
+        console.log("Heron Physics Lab: Systems Initialized");
     },
 
     loadRom: function() {
@@ -39,91 +41,58 @@ var myApp = {
         }
 
         this.data.moduleInitializing = true;
-        toastr.info("Connecting to WASM Bridge...");
+        toastr.info("Igniting Physics Engine...");
 
-        // 1. Prepare the Global Module for the code you pasted
-        window.Module = window.Module || {};
+        // 1. Tell the WASM engine where the canvas is
         window.Module.canvas = document.getElementById('canvas');
-        window.Module.monitorRunDependencies = (left) => {
-            if (left === 0) {
+        $('#canvasDiv').show();
+
+        // 2. Fetch the physics data file (.dat)
+        fetch(selectedUrl)
+            .then(response => {
+                if (!response.ok) throw new Error("File not found");
+                return response.arrayBuffer();
+            })
+            .then(buffer => {
+                const romData = new Uint8Array(buffer);
+                
+                // 3. Start the Engine
+                // This 'InitModule' is inside your n64wasm.js
+                if (typeof InitModule === 'function') {
+                    InitModule(romData);
+                    
+                    // UI Updates
+                    this.data.beforeEmulatorStarted = false;
+                    this.data.moduleInitializing = false;
+                    toastr.success("Simulation Live");
+                } else {
+                    toastr.error("Engine Bridge Missing. Check file order.");
+                }
+            })
+            .catch(err => {
+                console.error("Boot Error:", err);
+                toastr.error("Failed to load physics data.");
                 this.data.moduleInitializing = false;
-                this.data.beforeEmulatorStarted = false;
-                $('#canvasDiv').fadeIn();
-                toastr.success("Simulation Live");
-            }
-        };
-
-        // 2. Handle the WASM file location for GitHub Pages
-        window.Module.locateFile = function(path) {
-            if (path.endsWith('.wasm')) return "n64wasm.wasm";
-            return path;
-        };
-
-        // 3. The Boot Sequence
-        try {
-            // Check if InitModule is globally available
-            if (typeof InitModule === 'function') {
-                InitModule(selectedUrl);
-            } 
-            // If not, we fetch the data manually and pass it to the engine
-            else {
-                fetch(selectedUrl)
-                    .then(response => {
-                        if (!response.ok) throw new Error("Dataset not found");
-                        return response.arrayBuffer();
-                    })
-                    .then(buffer => {
-                        const romData = new Uint8Array(buffer);
-                        // Emergency check for the internal boot function
-                        if (window.n64wasm && typeof window.n64wasm.load === 'function') {
-                            window.n64wasm.load(romData);
-                        } else {
-                            // Standard fallback for n64wasm builds
-                            console.warn("Using standard buffer injection...");
-                            if (typeof InitModule === 'function') InitModule(romData);
-                        }
-                    })
-                    .catch(err => {
-                        console.error("Fetch Error:", err);
-                        toastr.error("Could not load .dat file.");
-                    });
-            }
-        } catch (err) {
-            console.error("Fatal Boot Error:", err);
-            toastr.error("Engine Bridge Failed.");
-        }
+            });
     },
 
-    // --- Student UI Helpers ---
+    // UI Helpers
     reset: function() {
-        if(confirm("Reset Simulation?")) window.location.reload();
-    },
-
-    newRom: function() {
-        if(confirm("Return to Dashboard?")) window.location.reload();
-    },
-
-    saveStateLocal: function() {
-        localStorage.setItem('heron-lab-save', 'active');
-        this.data.noLocalSave = false;
-        toastr.success("Progress Saved!");
+        if(confirm("Reset Experiment?")) window.location.reload();
     },
 
     fullscreen: function() {
         const canvas = document.getElementById('canvas');
         if (canvas.requestFullscreen) canvas.requestFullscreen();
-    },
-
-    showRemapModal: function() {
-        $('#buttonsModal').modal('show');
     }
 };
 
-// Global Bridge for HTML
+// This bridge allows the HTML "onclick" to find our functions
 var myClass = {
     loadRom: function() { myApp.loadRom(); }
 };
 
+// Launch when page is ready
 $(document).ready(function() {
     myApp.init();
 });
