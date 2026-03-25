@@ -1,6 +1,6 @@
 /**
  * Let's Go Herons | Physics Lab Controller
- * Final Synchronized Version for GitHub Pages
+ * Final Recompiled Version - GitHub Pages Optimized
  */
 
 var myApp = {
@@ -11,10 +11,7 @@ var myApp = {
         moduleInitializing: false,
         chkAdvanced: false,
         noLocalSave: true,
-        settings: {
-            SHOWADVANCED: true
-        },
-        // Default Key Bindings for Students
+        settings: { SHOWADVANCED: true },
         remappableButtons: [
             { name: 'Start/Pause', key: 'Enter' },
             { name: 'Action A', key: 'x' },
@@ -28,32 +25,25 @@ var myApp = {
     },
 
     init: function() {
-        // 1. Initialize UI Binding
+        // Bind UI
         rivets.bind($('#maindiv'), { data: this.data });
-
-        // 2. Check for existing saves
         this.data.noLocalSave = !localStorage.getItem('heron-lab-save');
-
-        console.log("Heron Physics Lab: Systems Initialized");
-    },
-
-    // --- Core Simulation Logic ---
-    
-    uploadBrowse: function() {
-        $('#file-upload').click();
+        console.log("Heron Lab: Systems Online");
     },
 
     loadRom: function() {
         const selectedUrl = $('#romselect').val();
         if (!selectedUrl) {
-            toastr.error("Please select a module first.");
+            toastr.error("Please select a module.");
             return;
         }
 
         this.data.moduleInitializing = true;
-        toastr.info("Igniting Physics Engine...");
+        toastr.info("Connecting to WASM Bridge...");
 
-        // 1. Update the pre-defined Module with simulation-specific hooks
+        // 1. Prepare the Global Module for the code you pasted
+        window.Module = window.Module || {};
+        window.Module.canvas = document.getElementById('canvas');
         window.Module.monitorRunDependencies = (left) => {
             if (left === 0) {
                 this.data.moduleInitializing = false;
@@ -63,50 +53,65 @@ var myApp = {
             }
         };
 
-        // 2. Show the canvas container
-        $('#canvasDiv').show();
+        // 2. Handle the WASM file location for GitHub Pages
+        window.Module.locateFile = function(path) {
+            if (path.endsWith('.wasm')) return "n64wasm.wasm";
+            return path;
+        };
 
-        // 3. Trigger the WebAssembly Loader
-        // We use a try/catch to catch path errors on GitHub Pages
+        // 3. The Boot Sequence
         try {
+            // Check if InitModule is globally available
             if (typeof InitModule === 'function') {
                 InitModule(selectedUrl);
-            } else {
-                console.error("InitModule not found. Ensure n64wasm.js is loaded.");
-                toastr.error("Engine Bridge Missing.");
+            } 
+            // If not, we fetch the data manually and pass it to the engine
+            else {
+                fetch(selectedUrl)
+                    .then(response => {
+                        if (!response.ok) throw new Error("Dataset not found");
+                        return response.arrayBuffer();
+                    })
+                    .then(buffer => {
+                        const romData = new Uint8Array(buffer);
+                        // Emergency check for the internal boot function
+                        if (window.n64wasm && typeof window.n64wasm.load === 'function') {
+                            window.n64wasm.load(romData);
+                        } else {
+                            // Standard fallback for n64wasm builds
+                            console.warn("Using standard buffer injection...");
+                            if (typeof InitModule === 'function') InitModule(romData);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Fetch Error:", err);
+                        toastr.error("Could not load .dat file.");
+                    });
             }
         } catch (err) {
-            console.error("WASM Boot Error:", err);
-            toastr.error("Failed to boot WASM engine.");
+            console.error("Fatal Boot Error:", err);
+            toastr.error("Engine Bridge Failed.");
         }
     },
 
-    // --- Student Tools ---
-
+    // --- Student UI Helpers ---
     reset: function() {
-        if(confirm("Reset the current experiment?")) {
-            // Most engines use a simple location reload to clear WASM memory
-            window.location.reload();
-        }
+        if(confirm("Reset Simulation?")) window.location.reload();
     },
 
     newRom: function() {
-        if(confirm("Exit to Dashboard?")) {
-            window.location.reload();
-        }
+        if(confirm("Return to Dashboard?")) window.location.reload();
     },
 
     saveStateLocal: function() {
-        // This is a UI placeholder for state management
-        localStorage.setItem('heron-lab-save', 'active_session');
+        localStorage.setItem('heron-lab-save', 'active');
         this.data.noLocalSave = false;
-        toastr.success("Milestone Saved!");
+        toastr.success("Progress Saved!");
     },
 
     fullscreen: function() {
         const canvas = document.getElementById('canvas');
         if (canvas.requestFullscreen) canvas.requestFullscreen();
-        else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
     },
 
     showRemapModal: function() {
@@ -114,16 +119,11 @@ var myApp = {
     }
 };
 
-/**
- * Global Bridge for HTML 'onclick' events
- */
+// Global Bridge for HTML
 var myClass = {
-    loadRom: function() {
-        myApp.loadRom();
-    }
+    loadRom: function() { myApp.loadRom(); }
 };
 
-// Start the Application
 $(document).ready(function() {
     myApp.init();
 });
